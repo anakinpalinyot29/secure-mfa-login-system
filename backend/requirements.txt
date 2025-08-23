@@ -6,3 +6,4 @@ pyjwt
 pyotp
 qrcode
 pydantic
+psycopg2-binary
