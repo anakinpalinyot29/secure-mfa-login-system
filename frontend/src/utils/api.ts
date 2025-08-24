@@ -1,5 +1,25 @@
 // src/utils/api.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// src/utils/api.ts
+// src/utils/api.ts
+const getApiUrl = () => {
+  // ตรวจสอบว่ามี VITE_API_URL หรือไม่
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // ถ้าไม่มี ให้ใช้ตาม environment
+  if (import.meta.env.MODE === 'production') {
+    return 'https://secure-mfa-api.onrender.com';
+  }
+  
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiUrl();
+
+// Debug: แสดงค่า API_BASE_URL เพื่อตรวจสอบ
+console.log('🔍 API_BASE_URL:', API_BASE_URL);
+console.log('🔍 All env vars:', import.meta.env);
 
 interface ApiOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -35,6 +55,9 @@ export const apiCall = async <T = any>(
 ): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  // Debug: แสดง URL ที่จะเรียก
+  console.log('🌐 API Call URL:', url);
+  
   const defaultOptions: ApiOptions = {
     headers: {
       'Content-Type': 'application/json',
@@ -61,7 +84,8 @@ export const apiCall = async <T = any>(
     
     return await response.json();
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error('❌ API call failed:', error);
+    console.error('❌ Failed URL:', url);
     throw error;
   }
 };
