@@ -28,6 +28,11 @@ app = FastAPI(
     redoc_url="/redoc" if os.getenv("ENVIRONMENT") == "development" else None
 )
 
+# Root endpoint for health check
+@app.get("/")
+def root():
+    return {"message": "Secure MFA API is running", "status": "healthy"}
+
 # Security headers middleware
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -39,10 +44,15 @@ async def add_security_headers(request, call_next):
     response.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net"
     return response
 
-# Trusted host middleware (prevent Host header injection)
+# Trusted host middleware (prevent Host header injection) - Updated for Render
 app.add_middleware(
     TrustedHostMiddleware, 
-    allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    allowed_hosts=[
+        "localhost", 
+        "127.0.0.1",
+        "*.onrender.com",  # Allow all Render subdomains
+        "secure-mfa-api.onrender.com"  # Your specific Render URL
+    ]
 )
 
 # CORS with secure configuration
@@ -54,10 +64,16 @@ app.add_middleware(
         "https://secure-mfa-login-system.vercel.app"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
     max_age=3600,
 )
 
 app.include_router(auth_router, prefix="/auth")
 app.include_router(mfa_router, prefix="/mfa")
+
+# For Render deployment
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
