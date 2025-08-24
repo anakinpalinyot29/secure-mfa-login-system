@@ -54,8 +54,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",      # Local dev alternative
         "http://127.0.0.1:5173",      # Local dev alternative
         # Add your production frontend URLs here
-         "https://secure-mfa-login-system.vercel.app",  # Replace with actual Vercel URL
- 
+        "https://secure-mfa-login-system.vercel.app",  # Replace with actual Vercel URL
+        # "https://yourdomain.com",            # Replace with custom domain
     ] + (os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Added OPTIONS for preflight

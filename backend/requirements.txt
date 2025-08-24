@@ -28,4 +28,5 @@ qrcode
 python-multipart
 
 # HTTP requests
+
 requests
