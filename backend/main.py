@@ -45,34 +45,18 @@ app.add_middleware(
     allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 )
 
-# Updated CORS configuration for dev and deploy
+# CORS with secure configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",      # React dev server
-        "http://localhost:5173",      # Vite dev server
-        "http://127.0.0.1:3000",      # Local dev alternative
-        "http://127.0.0.1:5173",      # Local dev alternative
-        # Add your production frontend URLs here
-        "https://secure-mfa-login-system.vercel.app",  # Replace with actual Vercel URL
-        # "https://yourdomain.com",            # Replace with custom domain
-    ] + (os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else []),
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Added OPTIONS for preflight
-    allow_headers=[
-        "Authorization", 
-        "Content-Type", 
-        "Accept",
-        "Origin",
-        "User-Agent",
-        "DNT",
-        "Cache-Control",
-        "X-Mx-ReqToken",
-        "Keep-Alive",
-        "X-Requested-With",
-        "If-Modified-Since"
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://secure-mfa-login-system.vercel.app"
     ],
-    max_age=3600,  # Cache preflight requests
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=3600,
 )
 
 app.include_router(auth_router, prefix="/auth")
