@@ -1,26 +1,32 @@
 // src/utils/api.ts
-// src/utils/api.ts
-// src/utils/api.ts
-const getApiUrl = () => {
-  // ตรวจสอบว่ามี VITE_API_URL หรือไม่
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+
+// ปรับปรุงการตั้งค่า API URL ให้ปลอดภัยและชัดเจนขึ้น
+const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  
+  // ตรวจสอบว่ามี env var และไม่ใช่ string ว่าง
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/$/, ''); // ลบ slash ท้าย
   }
   
-  // ถ้าไม่มี ให้ใช้ตาม environment
-  if (import.meta.env.MODE === 'production') {
-    return 'https://secure-mfa-api.onrender.com';
-  }
-  
-  return 'http://localhost:8000';
+  // Fallback ตาม environment
+  const baseUrl = import.meta.env.MODE === 'production' 
+    ? 'https://secure-mfa-api.onrender.com'
+    : 'http://localhost:8000';
+    
+  return baseUrl.replace(/\/$/, ''); // ลบ slash ท้ายเสมอ
 };
 
-const API_BASE_URL = getApiUrl();
+const API_BASE_URL = getApiBaseUrl();
 
-// Debug: แสดงค่า API_BASE_URL เพื่อตรวจสอบ
-console.log('🔍 API_BASE_URL:', API_BASE_URL);
-console.log('🔍 All env vars:', import.meta.env);
+// Debug logging (เฉพาะ development)
+if (import.meta.env.DEV) {
+  console.log('🔍 API_BASE_URL:', API_BASE_URL);
+  console.log('🔍 Environment:', import.meta.env.MODE);
+  console.log('🔍 VITE_API_URL:', import.meta.env.VITE_API_URL);
+}
 
+// ===== Type Definitions =====
 interface ApiOptions extends RequestInit {
   headers?: Record<string, string>;
 }
@@ -33,39 +39,64 @@ interface LoginRequest {
 interface RegisterRequest {
   email: string;
   password: string;
-  full_name: string;
+  full_name?: string; // Optional field
 }
 
 interface ApiResponse<T = any> {
   data?: T;
   message?: string;
   access_token?: string;
+  refresh_token?: string;
   user?: any;
+  mfa_enabled?: boolean;
+  requires_mfa?: boolean;
 }
 
+// ✅ แก้ interface ให้ตรงกับ backend response
 interface MFASetupResponse {
-  qr_code: string;
+  qr_code_base64: string;  // Backend ส่งมาเป็น qr_code_base64
+  backup_codes: string[];  // Backend ส่ง backup codes มาด้วย
   secret: string;
 }
 
-// Helper function สำหรับ API calls
+interface MFAVerifyRequest {
+  totp_code: string;
+}
+
+// ===== Custom Error Class =====
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+    public response?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+// ===== Core API Function =====
 export const apiCall = async <T = any>(
   endpoint: string, 
   options: ApiOptions = {}
 ): Promise<T> => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // ปรับปรุงการสร้าง URL ให้ปลอดภัยขึ้น
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${normalizedEndpoint}`;
   
-  // Debug: แสดง URL ที่จะเรียก
-  console.log('🌐 API Call URL:', url);
+  if (import.meta.env.DEV) {
+    console.log('🌐 API Call:', options.method || 'GET', url);
+  }
   
-  const defaultOptions: ApiOptions = {
+  const defaultOptions: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
     credentials: 'include',
   };
 
-  const finalOptions: ApiOptions = {
+  const finalOptions: RequestInit = {
     ...defaultOptions,
     ...options,
     headers: {
@@ -77,81 +108,139 @@ export const apiCall = async <T = any>(
   try {
     const response = await fetch(url, finalOptions);
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    // อ่าน response body ก่อนตรวจสอบ status
+    let responseData: any = {};
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      responseData = await response.json();
+    } else {
+      const text = await response.text();
+      responseData = { message: text };
     }
     
-    return await response.json();
+    if (!response.ok) {
+      const errorMessage = responseData?.detail || 
+                          responseData?.message || 
+                          `HTTP ${response.status}: ${response.statusText}`;
+      
+      if (import.meta.env.DEV) {
+        console.error('❌ API Error:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          error: responseData
+        });
+      }
+      
+      throw new ApiError(errorMessage, response.status, responseData);
+    }
+    
+    return responseData as T;
+    
   } catch (error) {
-    console.error('❌ API call failed:', error);
-    console.error('❌ Failed URL:', url);
-    throw error;
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    if (import.meta.env.DEV) {
+      console.error('❌ Network Error:', {
+        url,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+    
+    // Network หรือ parsing errors
+    throw new ApiError(
+      error instanceof Error ? error.message : 'Network error occurred',
+      0,
+      null
+    );
   }
 };
 
-// Auth API functions
+// ===== Auth API =====
 export const authAPI = {
-  login: async (credentials: LoginRequest): Promise<ApiResponse> => {
-    return apiCall('/auth/login', {
+  login: (credentials: LoginRequest): Promise<ApiResponse> =>
+    apiCall<ApiResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    });
-  },
+    }),
 
-  register: async (userData: RegisterRequest): Promise<ApiResponse> => {
-    return apiCall('/auth/register', {
+  // ✅ แก้เป็น /auth/signup ให้ตรงกับ backend
+  register: (userData: RegisterRequest): Promise<ApiResponse> =>
+    apiCall<ApiResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(userData),
-    });
-  },
+    }),
 
-  logout: async (): Promise<ApiResponse> => {
-    return apiCall('/auth/logout', {
+  logout: (token?: string): Promise<ApiResponse> => {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return apiCall<ApiResponse>('/auth/logout', {
       method: 'POST',
+      headers,
     });
   },
 
-  getProfile: async (token: string): Promise<ApiResponse> => {
-    return apiCall('/auth/me', {
+  // เพิ่ม error handling สำหรับกรณีที่ backend ยังไม่มี endpoint นี้
+  getProfile: (token: string): Promise<ApiResponse> =>
+    apiCall<ApiResponse>('/auth/me', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
-    });
-  },
+    }),
 };
 
-// MFA API functions
+// ===== MFA API =====
 export const mfaAPI = {
-  setupMFA: async (token: string): Promise<MFASetupResponse> => {
-    return apiCall('/mfa/setup', {
+  setupMFA: (token: string): Promise<MFASetupResponse> =>
+    apiCall<MFASetupResponse>('/mfa/setup', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
-    });
-  },
+    }),
 
-  verifyMFA: async (token: string, totpCode: string): Promise<ApiResponse> => {
-    return apiCall('/mfa/verify', {
+  verifyMFA: (token: string, totpCode: string): Promise<ApiResponse> =>
+    apiCall<ApiResponse>('/mfa/verify', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ totp_code: totpCode }),
-    });
-  },
+      body: JSON.stringify({ totp_code: totpCode } as MFAVerifyRequest),
+    }),
 
-  disableMFA: async (token: string, totpCode: string): Promise<ApiResponse> => {
-    return apiCall('/mfa/disable', {
+  disableMFA: (token: string, totpCode: string): Promise<ApiResponse> =>
+    apiCall<ApiResponse>('/mfa/disable', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ totp_code: totpCode }),
-    });
-  },
+      body: JSON.stringify({ totp_code: totpCode } as MFAVerifyRequest),
+    }),
 };
 
-export default { apiCall, authAPI, mfaAPI };
+// ===== Utility Functions =====
+export const isApiError = (error: unknown): error is ApiError => {
+  return error instanceof ApiError;
+};
+
+export const getErrorMessage = (error: unknown): string => {
+  if (isApiError(error)) {
+    return error.message;
+  }
+  
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  return 'An unexpected error occurred';
+};
+
+// Export default
+export default { apiCall, authAPI, mfaAPI, isApiError, getErrorMessage };
