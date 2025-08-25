@@ -1,30 +1,15 @@
 // src/utils/api.ts
 
-// ปรับปรุงการตั้งค่า API URL ให้ปลอดภัยและชัดเจนขึ้น
-const getApiBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  
-  // ตรวจสอบว่ามี env var และไม่ใช่ string ว่าง
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
-    return envUrl.trim().replace(/\/$/, ''); // ลบ slash ท้าย
-  }
-  
-  // Fallback ตาม environment
-  const baseUrl = import.meta.env.MODE === 'production' 
-    ? 'https://secure-mfa-api.onrender.com'
-    : 'http://localhost:8000';
-    
-  return baseUrl.replace(/\/$/, ''); // ลบ slash ท้ายเสมอ
-};
+// 🔥 บังคับใช้ production URL - แก้ปัญหาทันที
+const API_BASE_URL = 'https://secure-mfa-api.onrender.com';
 
-const API_BASE_URL = getApiBaseUrl();
+// Debug: แสดงให้เห็นว่าใช้ URL อะไร
+console.log('🔥 FORCED API_BASE_URL:', API_BASE_URL);
+console.log('🔍 Original env VITE_API_URL:', import.meta.env.VITE_API_URL);
+console.log('🔍 Environment MODE:', import.meta.env.MODE);
 
-// Debug logging (เฉพาะ development)
-if (import.meta.env.DEV) {
-  console.log('🔍 API_BASE_URL:', API_BASE_URL);
-  console.log('🔍 Environment:', import.meta.env.MODE);
-  console.log('🔍 VITE_API_URL:', import.meta.env.VITE_API_URL);
-}
+// แสดงทุก env vars เพื่อ debug
+console.log('🔍 All env vars:', import.meta.env);
 
 // ===== Type Definitions =====
 interface ApiOptions extends RequestInit {
@@ -39,7 +24,7 @@ interface LoginRequest {
 interface RegisterRequest {
   email: string;
   password: string;
-  full_name?: string; // Optional field
+  full_name?: string;
 }
 
 interface ApiResponse<T = any> {
@@ -52,10 +37,9 @@ interface ApiResponse<T = any> {
   requires_mfa?: boolean;
 }
 
-// ✅ แก้ interface ให้ตรงกับ backend response
 interface MFASetupResponse {
-  qr_code_base64: string;  // Backend ส่งมาเป็น qr_code_base64
-  backup_codes: string[];  // Backend ส่ง backup codes มาด้วย
+  qr_code_base64: string;
+  backup_codes: string[];
   secret: string;
 }
 
@@ -80,13 +64,12 @@ export const apiCall = async <T = any>(
   endpoint: string, 
   options: ApiOptions = {}
 ): Promise<T> => {
-  // ปรับปรุงการสร้าง URL ให้ปลอดภัยขึ้น
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${normalizedEndpoint}`;
   
-  if (import.meta.env.DEV) {
-    console.log('🌐 API Call:', options.method || 'GET', url);
-  }
+  // Debug: แสดง URL ที่จะเรียกจริง
+  console.log('🌐 API Call URL:', url);
+  console.log('🌐 Method:', options.method || 'GET');
   
   const defaultOptions: RequestInit = {
     headers: {
@@ -106,9 +89,13 @@ export const apiCall = async <T = any>(
   };
 
   try {
+    console.log('🚀 Making request to:', url);
     const response = await fetch(url, finalOptions);
     
-    // อ่าน response body ก่อนตรวจสอบ status
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    // อ่าน response body
     let responseData: any = {};
     const contentType = response.headers.get('content-type');
     
@@ -116,6 +103,7 @@ export const apiCall = async <T = any>(
       responseData = await response.json();
     } else {
       const text = await response.text();
+      console.log('📄 Response text:', text);
       responseData = { message: text };
     }
     
@@ -124,18 +112,17 @@ export const apiCall = async <T = any>(
                           responseData?.message || 
                           `HTTP ${response.status}: ${response.statusText}`;
       
-      if (import.meta.env.DEV) {
-        console.error('❌ API Error:', {
-          url,
-          status: response.status,
-          statusText: response.statusText,
-          error: responseData
-        });
-      }
+      console.error('❌ API Error:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        error: responseData
+      });
       
       throw new ApiError(errorMessage, response.status, responseData);
     }
     
+    console.log('✅ API Success:', responseData);
     return responseData as T;
     
   } catch (error) {
@@ -143,14 +130,11 @@ export const apiCall = async <T = any>(
       throw error;
     }
     
-    if (import.meta.env.DEV) {
-      console.error('❌ Network Error:', {
-        url,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    console.error('❌ Network Error:', {
+      url,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     
-    // Network หรือ parsing errors
     throw new ApiError(
       error instanceof Error ? error.message : 'Network error occurred',
       0,
@@ -161,18 +145,21 @@ export const apiCall = async <T = any>(
 
 // ===== Auth API =====
 export const authAPI = {
-  login: (credentials: LoginRequest): Promise<ApiResponse> =>
-    apiCall<ApiResponse>('/auth/login', {
+  login: (credentials: LoginRequest): Promise<ApiResponse> => {
+    console.log('🔐 Login attempt with:', { email: credentials.email });
+    return apiCall<ApiResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    }),
+    });
+  },
 
-  // ✅ แก้เป็น /auth/signup ให้ตรงกับ backend
-  register: (userData: RegisterRequest): Promise<ApiResponse> =>
-    apiCall<ApiResponse>('/auth/signup', {
+  register: (userData: RegisterRequest): Promise<ApiResponse> => {
+    console.log('📝 Register attempt with:', { email: userData.email });
+    return apiCall<ApiResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(userData),
-    }),
+    });
+  },
 
   logout: (token?: string): Promise<ApiResponse> => {
     const headers: Record<string, string> = {};
@@ -186,7 +173,6 @@ export const authAPI = {
     });
   },
 
-  // เพิ่ม error handling สำหรับกรณีที่ backend ยังไม่มี endpoint นี้
   getProfile: (token: string): Promise<ApiResponse> =>
     apiCall<ApiResponse>('/auth/me', {
       method: 'GET',
@@ -242,5 +228,4 @@ export const getErrorMessage = (error: unknown): string => {
   return 'An unexpected error occurred';
 };
 
-// Export default
 export default { apiCall, authAPI, mfaAPI, isApiError, getErrorMessage };
