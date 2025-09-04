@@ -76,10 +76,7 @@ export default function MFASetup() {
 
       if (response.ok) {
         // Update user MFA status
-        const user = authManager.getUser();
-        if (user) {
-          authManager.setUser({ ...user, mfaEnabled: true });
-        }
+        // Remove authManager.setUser and user state logic
 
         toast({
           title: "MFA Setup Complete",

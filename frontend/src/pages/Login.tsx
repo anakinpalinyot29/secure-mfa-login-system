@@ -55,8 +55,12 @@ export default function Login() {
       const data = await authAPI.login(formData);
 
       if (data && data.access_token) {
-        authManager.setTokens(data.tokens);
-        authManager.setUser(data.user);
+        authManager.setTokens({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          tokenType: data.token_type,
+          expiresIn: data.expires_in,
+        });
         
         toast({
           title: "Login successful",
@@ -64,7 +68,7 @@ export default function Login() {
         });
 
         // Check if MFA is required
-        if (data.requiresMFA) {
+        if (data.requires_mfa) {
           navigate('/mfa/verify');
         } else {
           navigate('/dashboard');

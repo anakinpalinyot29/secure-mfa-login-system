@@ -16,9 +16,9 @@ export default function MFADisable() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const user = authManager.getUser();
+  // Remove authManager.setUser and user state logic
 
-  if (!user?.mfaEnabled) {
+  if (!authManager.getUser()?.mfaEnabled) {
     navigate('/dashboard');
     return null;
   }
@@ -45,9 +45,7 @@ export default function MFADisable() {
 
       if (response.ok) {
         // Update user MFA status
-        if (user) {
-          authManager.setUser({ ...user, mfaEnabled: false });
-        }
+        // authManager.setUser({ ...user, mfaEnabled: false }); // This line is removed
 
         toast({
           title: "MFA Disabled",

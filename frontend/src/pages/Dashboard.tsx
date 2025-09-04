@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { authAPI } from "@/utils/api";
 
 export default function Dashboard() {
-  const [user, setUser] = useState(authManager.getUser());
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,7 +35,7 @@ export default function Dashboard() {
     navigate('/login');
   };
 
-  if (!user) {
+  if (!authManager.isAuthenticated()) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="loading-spinner" />
@@ -88,11 +87,11 @@ export default function Dashboard() {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <p className="text-foreground">{user.email}</p>
+                <p className="text-foreground">{authManager.getUser()?.email}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Account ID</label>
-                <p className="text-foreground font-mono text-sm">{user.id}</p>
+                <p className="text-foreground font-mono text-sm">{authManager.getUser()?.id}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Status</label>
@@ -108,7 +107,7 @@ export default function Dashboard() {
           <Card className="auth-card">
             <CardHeader>
               <CardTitle className="flex items-center">
-                {user.mfaEnabled ? (
+                {authManager.getUser()?.mfaEnabled ? (
                   <ShieldCheck className="w-5 h-5 mr-2 text-success" />
                 ) : (
                   <ShieldX className="w-5 h-5 mr-2 text-warning" />
@@ -116,7 +115,7 @@ export default function Dashboard() {
                 Two-Factor Authentication
               </CardTitle>
               <CardDescription>
-                {user.mfaEnabled 
+                {authManager.getUser()?.mfaEnabled 
                   ? "Your account is protected with 2FA" 
                   : "Add an extra layer of security"
                 }
@@ -124,14 +123,14 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${user.mfaEnabled ? 'bg-success' : 'bg-warning'}`}></div>
-                <span className={`text-sm font-medium ${user.mfaEnabled ? 'text-success' : 'text-warning'}`}>
-                  {user.mfaEnabled ? 'Enabled' : 'Disabled'}
+                <div className={`w-2 h-2 rounded-full ${authManager.getUser()?.mfaEnabled ? 'bg-success' : 'bg-warning'}`}></div>
+                <span className={`text-sm font-medium ${authManager.getUser()?.mfaEnabled ? 'text-success' : 'text-warning'}`}>
+                  {authManager.getUser()?.mfaEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
               
               <div className="space-y-2">
-                {user.mfaEnabled ? (
+                {authManager.getUser()?.mfaEnabled ? (
                   <SecurityButton
                     variant="destructive"
                     size="sm"

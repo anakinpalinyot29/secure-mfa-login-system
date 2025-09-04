@@ -81,8 +81,6 @@ export default function Signup() {
 
         // If MFA is enabled, redirect to MFA setup
         if (formData.enableMFA && data.requiresMFASetup) {
-          authManager.setTokens(data.tokens);
-          authManager.setUser(data.user);
           navigate('/mfa/setup');
         } else {
           navigate('/login');

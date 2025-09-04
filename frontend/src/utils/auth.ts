@@ -2,6 +2,8 @@
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  tokenType?: string;
+  expiresIn?: number;
 }
 
 export interface User {
@@ -46,11 +48,12 @@ class AuthManager {
     this.refreshToken = tokens.refreshToken;
     localStorage.setItem('accessToken', tokens.accessToken);
     localStorage.setItem('refreshToken', tokens.refreshToken);
-  }
-
-  setUser(user: User): void {
-    this.user = user;
-    localStorage.setItem('user', JSON.stringify(user));
+    if (tokens.tokenType) {
+      localStorage.setItem('tokenType', tokens.tokenType);
+    }
+    if (tokens.expiresIn) {
+      localStorage.setItem('expiresIn', tokens.expiresIn.toString());
+    }
   }
 
   getAccessToken(): string | null {
@@ -66,7 +69,7 @@ class AuthManager {
   }
 
   isAuthenticated(): boolean {
-    return !!this.accessToken && !!this.user;
+    return !!this.accessToken;
   }
 
   clearAuth(): void {
