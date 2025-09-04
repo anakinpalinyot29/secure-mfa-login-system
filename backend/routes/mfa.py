@@ -5,8 +5,11 @@ from models import User
 from utils.security import totp_manager, get_current_user, security_logger
 from pydantic import BaseModel, validator
 from typing import List
+import logging
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 class MFASetupResponse(BaseModel):
     qr_code_base64: str
@@ -61,7 +64,7 @@ async def setup_mfa(
         
     except Exception as e:
         db.rollback()
-        security_logger.logger.error(f"MFA setup error: {e}")
+        logger.error(f"MFA setup error: {e}")
         raise HTTPException(status_code=500, detail="MFA setup failed")
 
 @router.post("/verify")
