@@ -180,6 +180,13 @@ export const authAPI = {
         Authorization: `Bearer ${token}`,
       },
     }),
+
+  forgotPassword: (email: string): Promise<ApiResponse> => {
+    return apiCall<ApiResponse>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
 };
 
 // ===== MFA API =====

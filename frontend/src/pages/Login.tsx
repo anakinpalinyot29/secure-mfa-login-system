@@ -6,6 +6,7 @@ import { SecurityInput } from "@/components/ui/security-input";
 import { SecurityButton } from "@/components/ui/security-button";
 import { authManager } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/utils/api";
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -51,17 +52,9 @@ export default function Login() {
     setLoading(true);
     
     try {
-      const response = await fetch('/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      const data = await authAPI.login(formData);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data && data.access_token) {
         authManager.setTokens(data.tokens);
         authManager.setUser(data.user);
         

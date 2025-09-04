@@ -7,6 +7,7 @@ import { SecurityButton } from "@/components/ui/security-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { authManager } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/utils/api";
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -66,21 +67,13 @@ export default function Signup() {
     setLoading(true);
     
     try {
-      const response = await fetch('/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          enableMFA: formData.enableMFA,
-        }),
+      const data = await authAPI.register({
+        email: formData.email,
+        password: formData.password,
+        enableMFA: formData.enableMFA,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data) {
         toast({
           title: "Account created successfully",
           description: "Please sign in with your new credentials",

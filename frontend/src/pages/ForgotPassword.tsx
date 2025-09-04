@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/auth/auth-layout";
 import { SecurityInput } from "@/components/ui/security-input";
 import { SecurityButton } from "@/components/ui/security-button";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/utils/api";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -30,17 +31,9 @@ export default function ForgotPassword() {
     setError("");
     
     try {
-      const response = await fetch('/auth/forgot-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const data = await authAPI.forgotPassword(email);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data) {
         setSent(true);
         toast({
           title: "Reset link sent",

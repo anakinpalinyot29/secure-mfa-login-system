@@ -5,6 +5,7 @@ import { SecurityButton } from "@/components/ui/security-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authManager } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/utils/api";
 
 export default function Dashboard() {
   const [user, setUser] = useState(authManager.getUser());
@@ -22,13 +23,7 @@ export default function Dashboard() {
     setLoading(true);
 
     try {
-      await fetch('/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authManager.getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      await authAPI.logout(authManager.getAccessToken());
     } catch (error) {
       console.error('Logout error:', error);
     }
