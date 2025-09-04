@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Shield, RefreshCw } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { SecurityButton } from "@/components/ui/security-button";
-import { authFetch, authManager } from "@/utils/auth";
+import { mfaAPI } from "@/utils/api";
+import { authManager } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MFAVerify() {
@@ -92,37 +93,20 @@ export default function MFAVerify() {
     setError("");
 
     try {
-      const response = await authFetch('/mfa/verify', {
-        method: 'POST',
-        body: JSON.stringify({ code: verificationCode }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast({
-          title: "Verification successful",
-          description: "Access granted to your account",
-        });
-
-        navigate('/dashboard');
-      } else {
-        setError(data.message || "Invalid verification code");
-        setOtp(["", "", "", "", "", ""]);
-        inputRefs.current[0]?.focus();
-        
-        toast({
-          title: "Verification failed",
-          description: data.message || "Please check your code and try again",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('MFA verify error:', error);
-      setError("Network error. Please try again.");
+      await mfaAPI.verifyMFA(authManager.getAccessToken()!, verificationCode);
       toast({
-        title: "Connection error",
-        description: "Please check your internet connection",
+        title: "Verification successful",
+        description: "Access granted to your account",
+      });
+      navigate('/dashboard');
+    } catch (error: any) {
+      setError(error.message || "Invalid verification code");
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+      
+      toast({
+        title: "Verification failed",
+        description: error.message || "Please check your code and try again",
         variant: "destructive",
       });
     } finally {
@@ -132,10 +116,7 @@ export default function MFAVerify() {
 
   const handleResend = async () => {
     try {
-      const response = await authFetch('/mfa/resend', {
-        method: 'POST',
-      });
-
+      const response = await authManager.refreshMFA();
       if (response.ok) {
         setTimeLeft(30);
         toast({
