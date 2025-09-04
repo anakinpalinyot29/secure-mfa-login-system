@@ -23,6 +23,7 @@ python-dotenv
 
 # MFA / QR Code
 qrcode
+Pillow
 
 # File upload & form handling
 python-multipart
