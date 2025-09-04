@@ -61,7 +61,7 @@ async def setup_mfa(
         
     except Exception as e:
         db.rollback()
-        logger.error(f"MFA setup error: {e}")
+        security_logger.logger.error(f"MFA setup error: {e}")
         raise HTTPException(status_code=500, detail="MFA setup failed")
 
 @router.post("/verify")
