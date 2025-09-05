@@ -23,37 +23,7 @@ python-dotenv
 
 # MFA / QR Code
 qrcode
-
-# File upload & form handling
-python-multipart
-
-# HTTP requests
-requests
-# FastAPI core
-fastapi
-uvicorn[standard]
-
-# Database
-sqlalchemy
-psycopg2-binary
-alembic
-
-# Authentication & Security
-bcrypt
-passlib[bcrypt]
-pyjwt
-pyotp
-cryptography
-
-# Pydantic (data validation)
-pydantic
-pydantic[email]
-
-# Environment variables
-python-dotenv
-
-# MFA / QR Code
-qrcode
+Pillow
 
 # File upload & form handling
 python-multipart
