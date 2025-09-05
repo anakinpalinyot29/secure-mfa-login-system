@@ -5,17 +5,40 @@ import { SecurityButton } from "@/components/ui/security-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authManager } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
-import { authAPI } from "@/utils/api";
+import { authAPI, mfaAPI } from "@/utils/api";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(false);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (!authManager.isAuthenticated()) {
       navigate('/login');
+      return;
     }
+    
+    // Fetch user profile and MFA status
+    const fetchUserData = async () => {
+      try {
+        const userData = await authAPI.getProfile(authManager.getAccessToken()!);
+        setUserEmail(userData.user?.email || "");
+        setMfaEnabled(userData.user?.mfa_enabled || false);
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        // If profile fetch fails, try to get MFA status directly
+        try {
+          const mfaStatus = await mfaAPI.getMFAStatus(authManager.getAccessToken()!);
+          setMfaEnabled(mfaStatus.mfa_enabled || false);
+        } catch (mfaError) {
+          console.error('Failed to fetch MFA status:', mfaError);
+        }
+      }
+    };
+    
+    fetchUserData();
   }, [navigate]);
 
   const handleLogout = async () => {
@@ -87,11 +110,11 @@ export default function Dashboard() {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <p className="text-foreground">{authManager.getUser()?.email}</p>
+                <p className="text-foreground">{userEmail || "Loading..."}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Account ID</label>
-                <p className="text-foreground font-mono text-sm">{authManager.getUser()?.id}</p>
+                <label className="text-sm font-medium text-muted-foreground">Account Status</label>
+                <p className="text-foreground">Active</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Status</label>
@@ -107,7 +130,7 @@ export default function Dashboard() {
           <Card className="auth-card">
             <CardHeader>
               <CardTitle className="flex items-center">
-                {authManager.getUser()?.mfaEnabled ? (
+                {mfaEnabled ? (
                   <ShieldCheck className="w-5 h-5 mr-2 text-success" />
                 ) : (
                   <ShieldX className="w-5 h-5 mr-2 text-warning" />
@@ -115,7 +138,7 @@ export default function Dashboard() {
                 Two-Factor Authentication
               </CardTitle>
               <CardDescription>
-                {authManager.getUser()?.mfaEnabled 
+                {mfaEnabled 
                   ? "Your account is protected with 2FA" 
                   : "Add an extra layer of security"
                 }
@@ -123,14 +146,14 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${authManager.getUser()?.mfaEnabled ? 'bg-success' : 'bg-warning'}`}></div>
-                <span className={`text-sm font-medium ${authManager.getUser()?.mfaEnabled ? 'text-success' : 'text-warning'}`}>
-                  {authManager.getUser()?.mfaEnabled ? 'Enabled' : 'Disabled'}
+                <div className={`w-2 h-2 rounded-full ${mfaEnabled ? 'bg-success' : 'bg-warning'}`}></div>
+                <span className={`text-sm font-medium ${mfaEnabled ? 'text-success' : 'text-warning'}`}>
+                  {mfaEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
               
               <div className="space-y-2">
-                {authManager.getUser()?.mfaEnabled ? (
+                {mfaEnabled ? (
                   <SecurityButton
                     variant="destructive"
                     size="sm"

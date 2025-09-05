@@ -13,6 +13,7 @@ export default function MFASetup() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string>("");
+  const [totpCode, setTotpCode] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -54,14 +55,17 @@ export default function MFASetup() {
   };
 
   const handleConfirm = async () => {
+    if (!totpCode || totpCode.length !== 6) {
+      setError("Please enter a 6-digit code from your authenticator app");
+      return;
+    }
+
     setConfirming(true);
     setError("");
     try {
-      // You may need to collect the TOTP code from user input here
-      // For now, just call verifyMFA with a placeholder or actual code
-      // Example: const code = ...
-      // await mfaAPI.verifyMFA(authManager.getAccessToken()!, code);
-      // For now, just simulate success
+      // Verify TOTP code and enable MFA
+      await mfaAPI.verifyMFA(authManager.getAccessToken()!, totpCode);
+      
       toast({
         title: "MFA Setup Complete",
         description: "Your account is now secured with two-factor authentication",
@@ -69,10 +73,10 @@ export default function MFASetup() {
       navigate('/dashboard');
     } catch (error: any) {
       console.error('MFA confirm error:', error);
-      setError(error.message || "Network error. Please try again.");
+      setError(error.message || "Invalid code. Please try again.");
       toast({
-        title: "Connection error",
-        description: error.message || "Please check your internet connection",
+        title: "Verification failed",
+        description: error.message || "Please check your code and try again",
         variant: "destructive",
       });
     } finally {
@@ -167,12 +171,32 @@ export default function MFASetup() {
           </div>
         )}
 
+        {/* TOTP Code Input */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-foreground">
+            Enter 6-digit code from your authenticator app
+          </label>
+          <input
+            type="text"
+            value={totpCode}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+              setTotpCode(value);
+              if (error) setError("");
+            }}
+            placeholder="123456"
+            className="w-full p-3 bg-input border border-border rounded-lg text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary"
+            maxLength={6}
+            disabled={confirming}
+          />
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-col space-y-3">
           <SecurityButton
             onClick={handleConfirm}
             loading={confirming}
-            disabled={confirming}
+            disabled={confirming || totpCode.length !== 6}
             className="w-full"
           >
             <CheckCircle size={16} className="mr-2" />

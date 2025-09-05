@@ -216,6 +216,14 @@ export const mfaAPI = {
       },
       body: JSON.stringify({ totp_code: totpCode } as MFAVerifyRequest),
     }),
+
+  getMFAStatus: (token: string): Promise<ApiResponse> =>
+    apiCall<ApiResponse>('/mfa/status', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }),
 };
 
 // ===== Utility Functions =====
