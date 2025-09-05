@@ -35,7 +35,11 @@ export default function MFAVerify() {
   }, []);
 
   useEffect(() => {
-    if (!authManager.isAuthenticated()) {
+    // Check if we have stored login credentials (login flow) or if user is authenticated (regular MFA)
+    const storedEmail = sessionStorage.getItem('tempLoginEmail');
+    const storedPassword = sessionStorage.getItem('tempLoginPassword');
+    
+    if (!authManager.isAuthenticated() && !storedEmail && !storedPassword) {
       navigate('/login');
     }
   }, [navigate]);
