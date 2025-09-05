@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Shield, RefreshCw } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { SecurityButton } from "@/components/ui/security-button";
-import { mfaAPI } from "@/utils/api";
+import { mfaAPI, authAPI } from "@/utils/api";
 import { authManager } from "@/utils/auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,12 +93,48 @@ export default function MFAVerify() {
     setError("");
 
     try {
-      await mfaAPI.verifyMFA(authManager.getAccessToken()!, verificationCode);
-      toast({
-        title: "Verification successful",
-        description: "Access granted to your account",
-      });
-      navigate('/dashboard');
+      // Check if we have stored login credentials (from login flow)
+      const storedEmail = sessionStorage.getItem('tempLoginEmail');
+      const storedPassword = sessionStorage.getItem('tempLoginPassword');
+      
+      if (storedEmail && storedPassword) {
+        // This is a login flow - attempt login with TOTP code
+        const loginData = await authAPI.login({
+          email: storedEmail,
+          password: storedPassword,
+          totp_code: verificationCode
+        });
+        
+        if (loginData && loginData.access_token) {
+          // Clear stored credentials
+          sessionStorage.removeItem('tempLoginEmail');
+          sessionStorage.removeItem('tempLoginPassword');
+          
+          // Set tokens and navigate to dashboard
+          authManager.setTokens({
+            accessToken: loginData.access_token,
+            refreshToken: loginData.refresh_token,
+            tokenType: loginData.token_type,
+            expiresIn: loginData.expires_in,
+          });
+          
+          toast({
+            title: "Login successful",
+            description: "Welcome back!",
+          });
+          navigate('/dashboard');
+        } else {
+          throw new Error("Login failed");
+        }
+      } else {
+        // This is a regular MFA verification (not from login)
+        await mfaAPI.verifyMFA(authManager.getAccessToken()!, verificationCode);
+        toast({
+          title: "Verification successful",
+          description: "Access granted to your account",
+        });
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       setError(error.message || "Invalid verification code");
       setOtp(["", "", "", "", "", ""]);

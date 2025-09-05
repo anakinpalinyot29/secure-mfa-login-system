@@ -54,30 +54,49 @@ export default function Login() {
     try {
       const data = await authAPI.login(formData);
 
-      if (data && data.access_token) {
-        authManager.setTokens({
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          tokenType: data.token_type,
-          expiresIn: data.expires_in,
-        });
-        
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-        });
-
-        // Check if MFA is required
+      if (data) {
+        // Check if MFA is required first
         if (data.requires_mfa) {
+          // Store temporary credentials for MFA verification
+          // We'll need to pass the email/password to MFA verify
+          sessionStorage.setItem('tempLoginEmail', formData.email);
+          sessionStorage.setItem('tempLoginPassword', formData.password);
+          
+          toast({
+            title: "MFA Required",
+            description: "Please enter your 6-digit authentication code",
+          });
           navigate('/mfa/verify');
-        } else {
+          return;
+        }
+        
+        // Normal login success
+        if (data.access_token) {
+          authManager.setTokens({
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+            tokenType: data.token_type,
+            expiresIn: data.expires_in,
+          });
+          
+          toast({
+            title: "Login successful",
+            description: "Welcome back!",
+          });
           navigate('/dashboard');
+        } else {
+          setErrors({ general: data.message || "Login failed" });
+          toast({
+            title: "Login failed", 
+            description: data.message || "Please check your credentials",
+            variant: "destructive",
+          });
         }
       } else {
-        setErrors({ general: data.message || "Login failed" });
+        setErrors({ general: "Login failed" });
         toast({
           title: "Login failed", 
-          description: data.message || "Please check your credentials",
+          description: "Please check your credentials",
           variant: "destructive",
         });
       }
