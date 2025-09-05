@@ -134,7 +134,7 @@ export default function MFASetup() {
           <div className="text-center">
             <div className="inline-block p-4 bg-white rounded-lg shadow-md">
               <img 
-                src={qrCode} 
+                src={`data:image/png;base64,${qrCode}`} 
                 alt="MFA QR Code" 
                 className="w-48 h-48 mx-auto"
               />
